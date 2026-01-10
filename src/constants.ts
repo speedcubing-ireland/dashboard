@@ -1,7 +1,9 @@
 export const A4L_WIDTH = 297
 export const A4L_HEIGHT = 210
-export const A6L_WIDTH = 148
+export const A6L_WIDTH = 148.5
 export const A6L_HEIGHT = 105
+export const A7_WIDTH = 74.25
+export const A7_HEIGHT = 105
 
 export const COLUMN_RATIOS = {
   time: 0.21,

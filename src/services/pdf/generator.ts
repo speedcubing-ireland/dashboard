@@ -2,7 +2,7 @@ import { PDFDocument, PDFPage, PDFImage, PDFFont, rgb } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import type { BadgeConfig } from '@/types/badge'
 import type { PersonScheduleInfo, AssignmentInfo } from '@/types/wcif'
-import { A4L_WIDTH, A4L_HEIGHT, A6L_WIDTH, A6L_HEIGHT, COLUMN_RATIOS, LAYOUT, EVENT_ICON_MAP, WEEK_DAYS } from '@/constants'
+import { A4L_WIDTH, A4L_HEIGHT, A6L_WIDTH, A6L_HEIGHT, A7_WIDTH, COLUMN_RATIOS, LAYOUT, EVENT_ICON_MAP, WEEK_DAYS } from '@/constants'
 import { mmToPoints, flipY, rgbColor } from '@/utils/pdf'
 import { chooseFont, parseLocalName, removeStageWord } from '@/utils/schedule'
 import { embedFont, preloadFonts, getTextWidth } from './fonts'
@@ -397,12 +397,13 @@ async function drawScheduleSide(ctx: BadgeContext, page: PDFPage, info: PersonSc
 }
 
 async function drawBadge(ctx: BadgeContext, page: PDFPage, info: PersonScheduleInfo, offsetX: number, offsetY: number, pageHeight: number): Promise<void> {
-  const half = A6L_WIDTH / 2
-  await drawScheduleSide(ctx, page, info, offsetX, offsetY, half, A6L_HEIGHT, pageHeight)
-  await drawNameSide(ctx, page, info, offsetX + half, offsetY, half, A6L_HEIGHT, pageHeight)
+  const scheduleWidth = A6L_WIDTH - A7_WIDTH
+  const nameWidth = A7_WIDTH
+  await drawScheduleSide(ctx, page, info, offsetX, offsetY, scheduleWidth, A6L_HEIGHT, pageHeight)
+  await drawNameSide(ctx, page, info, offsetX + scheduleWidth, offsetY, nameWidth, A6L_HEIGHT, pageHeight)
   page.drawLine({
-    start: { x: mmToPoints(offsetX + half), y: flipY(pageHeight, offsetY) },
-    end: { x: mmToPoints(offsetX + half), y: flipY(pageHeight, offsetY + A6L_HEIGHT) },
+    start: { x: mmToPoints(offsetX + scheduleWidth), y: flipY(pageHeight, offsetY) },
+    end: { x: mmToPoints(offsetX + scheduleWidth), y: flipY(pageHeight, offsetY + A6L_HEIGHT) },
     thickness: 0.5,
     color: rgb(0.8, 0.8, 0.8),
   })
@@ -449,19 +450,20 @@ export async function generateSingleBadge(info: PersonScheduleInfo, config: Badg
   const embedded = await embedImages(doc, { ...images, flags: flagMap })
   const page = doc.addPage([mmToPoints(A6L_WIDTH), mmToPoints(A6L_HEIGHT)])
   const pageHeight = mmToPoints(A6L_HEIGHT)
-  const half = A6L_WIDTH / 2
+  const scheduleWidth = A6L_WIDTH - A7_WIDTH
+  const nameWidth = A7_WIDTH
 
   const ctx: BadgeContext = {
     doc, fonts: await preloadFonts(doc), config, ...embedded,
   }
 
-  await drawScheduleSide(ctx, page, info, 0, 0, half, A6L_HEIGHT, pageHeight)
-  await drawNameSide(ctx, page, info, half, 0, half, A6L_HEIGHT, pageHeight)
+  await drawScheduleSide(ctx, page, info, 0, 0, scheduleWidth, A6L_HEIGHT, pageHeight)
+  await drawNameSide(ctx, page, info, scheduleWidth, 0, nameWidth, A6L_HEIGHT, pageHeight)
 
-  const centerX = page.getWidth() / 2
+  const dividerX = mmToPoints(scheduleWidth)
   page.drawLine({
-    start: { x: centerX, y: flipY(pageHeight, 0) },
-    end: { x: centerX, y: flipY(pageHeight, A6L_HEIGHT) },
+    start: { x: dividerX, y: flipY(pageHeight, 0) },
+    end: { x: dividerX, y: flipY(pageHeight, A6L_HEIGHT) },
     thickness: 0.5,
     color: rgb(0.8, 0.8, 0.8),
   })
