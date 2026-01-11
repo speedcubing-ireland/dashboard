@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { HomeIcon, CalendarIcon, CubeIcon, SunIcon, MoonIcon, ComputerIcon, IdentityCardIcon, Settings01Icon } from '@hugeicons/core-free-icons'
+import { HomeIcon, CalendarIcon, CubeIcon, SunIcon, MoonIcon, ComputerIcon, IdentityCardIcon, Settings01Icon, ImageIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
   Sidebar,
@@ -29,6 +29,7 @@ const navItems = [
   { title: 'Badges', href: '/badges', icon: IdentityCardIcon },
   { title: 'Competitions', href: '/competitions', icon: CalendarIcon },
   { title: 'Events', href: '/events', icon: CubeIcon },
+  { title: 'Icons', href: '/icons', icon: ImageIcon },
   { title: 'GSuite Admin', href: '/gsuite', icon: Settings01Icon },
 ]
 

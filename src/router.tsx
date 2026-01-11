@@ -7,6 +7,7 @@ import { EventsPage } from '@/routes/events'
 import { GSuitePage } from '@/routes/gsuite'
 import { GSuiteGroupDetailsPage } from '@/routes/gsuite-group-details'
 import { GSuiteLoginPage } from '@/routes/gsuite-login'
+import { IconsPage } from '@/routes/icons'
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -58,6 +59,12 @@ const gsuiteGroupDetailsRoute = createRoute({
   component: GSuiteGroupDetailsPage,
 })
 
+const iconsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/icons',
+  component: IconsPage,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   badgesRoute,
@@ -66,6 +73,7 @@ const routeTree = rootRoute.addChildren([
   gsuiteRoute,
   gsuiteLoginRoute,
   gsuiteGroupDetailsRoute,
+  iconsRoute,
 ])
 
 export const router = createRouter({ routeTree })

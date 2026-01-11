@@ -116,6 +116,14 @@
     --radius-4xl: calc(var(--radius) + 16px);
 }
 
+@font-face {
+  font-family: 'cubing-icons';
+  src: url('/fonts/cubing-icons.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
