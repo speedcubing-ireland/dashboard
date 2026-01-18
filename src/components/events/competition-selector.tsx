@@ -1,21 +1,27 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { getAvailableCompetitions } from '@/services/competition-data'
-import type { APICompetition } from '@/types/competition'
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { getAvailableCompetitions } from "@/services/competition-data";
+import type { APICompetition } from "@/types/competition";
 
 interface CompetitionSelectorProps {
-  competitions: APICompetition[]
-  selected: string[]
-  searchTerm: string
-  onSearchChange: (term: string) => void
-  onToggle: (id: string) => void
-  onSelectAll: () => void
-  onDeselectAll: () => void
+  competitions: APICompetition[];
+  selected: string[];
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
+  onToggle: (id: string) => void;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
 }
 
 export function CompetitionSelector({
@@ -27,10 +33,10 @@ export function CompetitionSelector({
   onSelectAll,
   onDeselectAll,
 }: CompetitionSelectorProps) {
-  const available = getAvailableCompetitions(competitions)
+  const available = getAvailableCompetitions(competitions);
   const filtered = available.filter((c) =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   return (
     <Card>
@@ -77,7 +83,10 @@ export function CompetitionSelector({
                   checked={selected.includes(comp.id)}
                   onCheckedChange={() => onToggle(comp.id)}
                 />
-                <Label htmlFor={comp.id} className="cursor-pointer text-sm leading-tight flex-1">
+                <Label
+                  htmlFor={comp.id}
+                  className="cursor-pointer text-sm leading-tight flex-1"
+                >
                   {comp.name}
                 </Label>
               </div>
@@ -93,9 +102,10 @@ export function CompetitionSelector({
         <Separator />
 
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{selected.length}</span> of {competitions.length} selected
+          <span className="font-medium text-foreground">{selected.length}</span>{" "}
+          of {competitions.length} selected
         </p>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -1,16 +1,24 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useBadgeStore } from '@/stores/badge-config'
-import { BadgeCheck } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
+import { BadgeCheck } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useBadgeStore } from "@/stores/badge-config";
 
 export function CompetitionSummary() {
-  const { wcif } = useBadgeStore()
+  const { wcif } = useBadgeStore();
 
-  if (!wcif) return null
+  if (!wcif) return null;
 
-  const accepted = wcif.persons.filter((p) => p.registration?.status === 'accepted')
-  const newcomers = accepted.filter((p) => !p.wcaId).length
-  const countries = new Set(accepted.map((p) => p.countryIso2)).size
+  const accepted = wcif.persons.filter(
+    (p) => p.registration?.status === "accepted",
+  );
+  const newcomers = accepted.filter((p) => !p.wcaId).length;
+  const countries = new Set(accepted.map((p) => p.countryIso2)).size;
 
   return (
     <Card>
@@ -38,5 +46,5 @@ export function CompetitionSummary() {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

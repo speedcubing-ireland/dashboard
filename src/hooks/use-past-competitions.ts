@@ -1,28 +1,28 @@
-import { useState, useEffect } from 'react'
-import { getPastCompetitions } from '@/services/wca-api'
-import type { APICompetition } from '@/types/competition'
+import { useEffect, useState } from "react";
+import { getAllCompetitions } from "@/services/wca/unofficial";
+import type { APICompetition } from "@/types/competition";
 
 export function usePastCompetitions() {
-  const [competitions, setCompetitions] = useState<APICompetition[]>([])
-  const [selected, setSelected] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [competitions, setCompetitions] = useState<APICompetition[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    getPastCompetitions()
+    getAllCompetitions()
       .then(setCompetitions)
       .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const toggle = (id: string) => {
     setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    )
-  }
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
 
-  const selectAll = () => setSelected(competitions.map((c) => c.id))
-  const deselectAll = () => setSelected([])
+  const selectAll = () => setSelected(competitions.map((c) => c.id));
+  const deselectAll = () => setSelected([]);
 
   return {
     competitions,
@@ -34,5 +34,5 @@ export function usePastCompetitions() {
     selectAll,
     deselectAll,
     setSelected,
-  }
+  };
 }

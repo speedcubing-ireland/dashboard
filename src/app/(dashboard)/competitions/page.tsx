@@ -1,12 +1,26 @@
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useStatistics } from '@/hooks/use-statistics'
-import { StatisticsTable } from '@/components/competitions/statistics-table'
-import { HugeiconsIcon } from '@hugeicons/react'
-import { Loading03Icon, ChartIcon } from '@hugeicons/core-free-icons'
+"use client";
 
-export function CompetitionsPage() {
-  const { statsData, generating, showRawNumbers, setShowRawNumbers, generateStatistics } = useStatistics()
+import { ChartIcon, Loading03Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { StatisticsTable } from "@/components/competitions/statistics-table";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useStatistics } from "@/hooks/use-statistics";
+
+export default function CompetitionsPage() {
+  const {
+    statsData,
+    generating,
+    showRawNumbers,
+    setShowRawNumbers,
+    generateStatistics,
+  } = useStatistics();
 
   return (
     <div className="space-y-6">
@@ -21,11 +35,14 @@ export function CompetitionsPage() {
           <Button onClick={generateStatistics} disabled={generating}>
             {generating ? (
               <>
-                <HugeiconsIcon icon={Loading03Icon} className="mr-2 size-4 animate-spin" />
+                <HugeiconsIcon
+                  icon={Loading03Icon}
+                  className="mr-2 size-4 animate-spin"
+                />
                 Generating...
               </>
             ) : (
-              'Refresh Statistics'
+              "Refresh Statistics"
             )}
           </Button>
         )}
@@ -41,16 +58,27 @@ export function CompetitionsPage() {
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-6 py-8">
             <div className="p-4 rounded-full bg-primary/10">
-              <HugeiconsIcon icon={ChartIcon} className="size-12 text-primary" strokeWidth={1.5} />
+              <HugeiconsIcon
+                icon={ChartIcon}
+                className="size-12 text-primary"
+                strokeWidth={1.5}
+              />
             </div>
-            <Button onClick={generateStatistics} disabled={generating} size="lg">
+            <Button
+              onClick={generateStatistics}
+              disabled={generating}
+              size="lg"
+            >
               {generating ? (
                 <>
-                  <HugeiconsIcon icon={Loading03Icon} className="mr-2 size-4 animate-spin" />
+                  <HugeiconsIcon
+                    icon={Loading03Icon}
+                    className="mr-2 size-4 animate-spin"
+                  />
                   Fetching Competition Data...
                 </>
               ) : (
-                'Generate Statistics'
+                "Generate Statistics"
               )}
             </Button>
           </CardContent>
@@ -65,5 +93,5 @@ export function CompetitionsPage() {
         />
       )}
     </div>
-  )
+  );
 }

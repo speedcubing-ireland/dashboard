@@ -1,28 +1,30 @@
-import { useEffect } from 'react'
-import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useGSuiteAuth } from '@/hooks/use-gsuite-auth'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+"use client";
+
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Spinner } from '@/components/ui/spinner'
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import { useGSuiteAuth } from "@/hooks/use-gsuite-auth";
 
-export function GSuiteLoginPage() {
-  const { login, isAuthenticated, isLoading, error } = useGSuiteAuth()
-  const navigate = useNavigate()
-  const search = useSearch({ strict: false }) as { from?: string }
-  const from = search.from || '/gsuite'
+function LoginContent() {
+  const { login, isAuthenticated, isLoading, error } = useGSuiteAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from") || "/gsuite";
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate({ to: from, replace: true })
+      router.replace(from);
     }
-  }, [isAuthenticated, navigate, from])
+  }, [isAuthenticated, router, from]);
 
   return (
     <div className="flex h-full items-center justify-center bg-muted/30 p-4 rounded-lg">
@@ -30,7 +32,8 @@ export function GSuiteLoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">GSuite Admin Dashboard</CardTitle>
           <CardDescription>
-            Sign in with your Google Workspace account to manage groups and settings.
+            Sign in with your Google Workspace account to manage groups and
+            settings.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -48,7 +51,12 @@ export function GSuiteLoginPage() {
             </ul>
           </div>
 
-          <Button className="w-full" size="lg" onClick={login} disabled={isLoading}>
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={login}
+            disabled={isLoading}
+          >
             {isLoading ? (
               <>
                 <Spinner className="mr-2 h-4 w-4" />
@@ -88,5 +96,19 @@ export function GSuiteLoginPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
+}
+
+export default function GSuiteLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full items-center justify-center">
+          <Spinner className="h-8 w-8" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
+  );
 }

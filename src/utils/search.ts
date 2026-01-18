@@ -1,1 +1,10 @@
-export const createSearchFilter = <T,>(searchTerm: string, getSearchableText: (item: T) => string): ((item: T) => boolean) => !searchTerm.trim() ? () => true : (item) => getSearchableText(item).toLowerCase().includes(searchTerm.toLowerCase())
+export const createSearchFilter = <T>(
+  searchTerm: string,
+  getSearchableText: (item: T) => string,
+): ((item: T) => boolean) =>
+  !searchTerm.trim()
+    ? () => true
+    : (item) =>
+        getSearchableText(item)
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());

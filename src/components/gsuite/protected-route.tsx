@@ -1,23 +1,25 @@
-import { useEffect } from 'react'
-import { Navigate, useLocation } from '@tanstack/react-router'
-import { Spinner } from '@/components/ui/spinner'
-import { useGSuiteAuthStore } from '@/stores/gsuite-auth'
-import { useGSuiteAuth } from '@/hooks/use-gsuite-auth'
+"use client";
+
+import { redirect, usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { Spinner } from "@/components/ui/spinner";
+import { useGSuiteAuth } from "@/hooks/use-gsuite-auth";
+import { useGSuiteAuthStore } from "@/stores/gsuite-auth";
 
 interface ProtectedRouteProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export function GSuiteProtected({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, isSuperAdmin, error } = useGSuiteAuth()
-  const { isTokenExpired, logout } = useGSuiteAuthStore()
-  const location = useLocation()
+  const { isAuthenticated, isLoading, isSuperAdmin, error } = useGSuiteAuth();
+  const { isTokenExpired, logout } = useGSuiteAuthStore();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (isAuthenticated && isTokenExpired()) {
-      logout()
+      logout();
     }
-  }, [isAuthenticated, isTokenExpired, logout])
+  }, [isAuthenticated, isTokenExpired, logout]);
 
   if (isLoading) {
     return (
@@ -27,11 +29,11 @@ export function GSuiteProtected({ children }: ProtectedRouteProps) {
           <p className="mt-4 text-muted-foreground">Verifying access...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/gsuite/login" search={{ from: location.href }} />
+    redirect(`/gsuite/login?from=${encodeURIComponent(pathname)}`);
   }
 
   if (!isSuperAdmin) {
@@ -40,12 +42,12 @@ export function GSuiteProtected({ children }: ProtectedRouteProps) {
         <div className="text-center max-w-md">
           <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
           <p className="mt-2 text-muted-foreground">
-            {error || 'You must be a Super Admin to access this dashboard.'}
+            {error || "You must be a Super Admin to access this dashboard."}
           </p>
         </div>
       </div>
-    )
+    );
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }

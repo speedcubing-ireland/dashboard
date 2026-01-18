@@ -7,6 +7,7 @@ A dashboard for managing Speedcubing Ireland competitions and related tasks.
 - **Badge Generator** - Generate badges for competitor's lanyards
 - **Competitions** - View upcoming competitions and their status
 - **Events** - Track popularity of events at competitions
+- **Calendar** - Subscribe to Irish WCA competitions calendar
 - **Icons** - Browse and copy icons for the cubing-icons font
 - **GSuite Admin** - Manage Google Workspace groups and settings
 

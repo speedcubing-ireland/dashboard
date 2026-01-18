@@ -1,6 +1,28 @@
-import { Link, useRouterState } from '@tanstack/react-router'
-import { HomeIcon, CalendarIcon, CubeIcon, SunIcon, MoonIcon, ComputerIcon, IdentityCardIcon, Settings01Icon, ImageIcon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
+"use client";
+
+import {
+  CalendarIcon,
+  ComputerIcon,
+  CubeIcon,
+  HomeIcon,
+  IdentityCardIcon,
+  ImageIcon,
+  MoonIcon,
+  Settings01Icon,
+  SunIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useTheme } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -8,65 +30,91 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
+  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarInset,
-} from '@/components/ui/sidebar'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
-import { useTheme } from '@/components/theme-provider'
-import { Toaster } from '@/components/ui/sonner'
+} from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 
 const navItems = [
-  { title: 'Home', href: '/', icon: HomeIcon },
-  { title: 'Badges', href: '/badges', icon: IdentityCardIcon },
-  { title: 'Competitions', href: '/competitions', icon: CalendarIcon },
-  { title: 'Events', href: '/events', icon: CubeIcon },
-  { title: 'Icons', href: '/icons', icon: ImageIcon },
-  { title: 'GSuite Admin', href: '/gsuite', icon: Settings01Icon },
-]
+  { title: "Home", href: "/", icon: HomeIcon },
+  { title: "Badges", href: "/badges", icon: IdentityCardIcon },
+  { title: "Competitions", href: "/competitions", icon: CalendarIcon },
+  { title: "Events", href: "/events", icon: CubeIcon },
+  { title: "Calendar", href: "/calendar", icon: CalendarIcon },
+  { title: "Icons", href: "/icons", icon: ImageIcon },
+  { title: "GSuite Admin", href: "/gsuite", icon: Settings01Icon },
+];
 
 function ThemeToggle() {
-  const { setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="w-full justify-start gap-2 px-2"
+        disabled
+      >
+        <div className="size-4" />
+        <span className="text-muted-foreground">Loading...</span>
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="w-full justify-start gap-2 px-2">
-          <HugeiconsIcon icon={SunIcon} strokeWidth={2} className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <HugeiconsIcon icon={MoonIcon} strokeWidth={2} className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="dark:hidden">Light</span>
-          <span className="hidden dark:inline">Dark</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="w-full justify-start gap-2 px-2"
+        >
+          {theme === "light" && (
+            <HugeiconsIcon icon={SunIcon} strokeWidth={2} className="size-4" />
+          )}
+          {theme === "dark" && (
+            <HugeiconsIcon icon={MoonIcon} strokeWidth={2} className="size-4" />
+          )}
+          {theme === "system" && (
+            <HugeiconsIcon
+              icon={ComputerIcon}
+              strokeWidth={2}
+              className="size-4"
+            />
+          )}
+
+          <span className="capitalize">{theme}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuItem onClick={() => setTheme('light')}>
+        <DropdownMenuItem onClick={() => setTheme("light")}>
           <HugeiconsIcon icon={SunIcon} strokeWidth={2} />
           Light
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')}>
+        <DropdownMenuItem onClick={() => setTheme("dark")}>
           <HugeiconsIcon icon={MoonIcon} strokeWidth={2} />
           Dark
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')}>
+        <DropdownMenuItem onClick={() => setTheme("system")}>
           <HugeiconsIcon icon={ComputerIcon} strokeWidth={2} />
           System
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const router = useRouterState()
-  const currentPath = router.location.pathname
+  const pathname = usePathname();
 
   return (
     <SidebarProvider>
@@ -74,11 +122,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <SidebarHeader className="border-b px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="size-8 rounded-md bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">SI</span>
+              <span className="text-primary-foreground font-bold text-sm">
+                SI
+              </span>
             </div>
             <div className="flex flex-col">
               <span className="font-semibold text-sm">Dashboard</span>
-              <span className="text-xs text-muted-foreground">Speedcubing Ireland</span>
+              <span className="text-xs text-muted-foreground">
+                Speedcubing Ireland
+              </span>
             </div>
           </div>
         </SidebarHeader>
@@ -88,8 +140,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <SidebarMenu>
                 {navItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={currentPath === item.href}>
-                      <Link to={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.href}
+                    >
+                      <Link href={item.href}>
                         <HugeiconsIcon icon={item.icon} strokeWidth={2} />
                         <span>{item.title}</span>
                       </Link>
@@ -105,11 +160,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <main className="flex-1 overflow-auto p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-auto p-6">{children}</main>
       </SidebarInset>
       <Toaster />
     </SidebarProvider>
-  )
+  );
 }

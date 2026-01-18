@@ -1,17 +1,16 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { GSuiteProtected } from '@/components/gsuite/protected-route'
-import { GroupsTab } from '@/components/gsuite/groups-tab'
-import { UsersTab } from '@/components/gsuite/users-tab'
-import { SheetsSyncTab } from '@/components/gsuite/sheets-sync-tab'
+"use client";
 
-import { useNavigate } from '@tanstack/react-router'
-import { useGSuiteAuth } from '@/hooks/use-gsuite-auth'
-import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { HugeiconsIcon } from '@hugeicons/react'
-import { Logout01Icon } from '@hugeicons/core-free-icons'
-
-import { Badge } from '@/components/ui/badge'
+import { Logout01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useRouter } from "next/navigation";
+import { DriveSyncTab } from "@/components/gsuite/drive-sync-tab";
+import { GroupsTab } from "@/components/gsuite/groups-tab";
+import { GSuiteProtected } from "@/components/gsuite/protected-route";
+import { SheetsSyncTab } from "@/components/gsuite/sheets-sync-tab";
+import { UsersTab } from "@/components/gsuite/users-tab";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,34 +18,43 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useGSuiteAuth } from "@/hooks/use-gsuite-auth";
 
-export function GSuitePage() {
-  const { user, logout } = useGSuiteAuth()
-  const navigate = useNavigate()
+export default function GSuitePage() {
+  const { user, logout } = useGSuiteAuth();
+  const router = useRouter();
 
   const handleLogout = () => {
-    logout()
-    navigate({ to: '/gsuite/login' })
-  }
+    logout();
+    router.push("/gsuite/login");
+  };
 
   return (
     <GSuiteProtected>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Groups & Members</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Groups & Members
+            </h1>
             <p className="text-muted-foreground">
               Manage users, groups, and sync memberships from Google Sheets
             </p>
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Button
+                variant="ghost"
+                className="relative h-10 w-10 rounded-full"
+              >
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-                    {user?.name?.givenName?.[0] || user?.primaryEmail?.[0]?.toUpperCase() || 'U'}
+                    {user?.name?.givenName?.[0] ||
+                      user?.primaryEmail?.[0]?.toUpperCase() ||
+                      "U"}
                     {user?.name?.familyName?.[0]}
                   </AvatarFallback>
                 </Avatar>
@@ -55,17 +63,22 @@ export function GSuitePage() {
             <DropdownMenuContent className="w-56" align="end">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium leading-none">{user?.name?.fullName}</p>
+                  <p className="text-sm font-medium leading-none">
+                    {user?.name?.fullName}
+                  </p>
                   {user?.isAdmin && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] px-1.5 py-0 h-4"
+                    >
                       Admin
                     </Badge>
                   )}
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={handleLogout} 
+              <DropdownMenuItem
+                onClick={handleLogout}
                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
               >
                 <HugeiconsIcon icon={Logout01Icon} className="mr-2 h-4 w-4" />
@@ -80,6 +93,7 @@ export function GSuitePage() {
             <TabsTrigger value="groups">Groups</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="sync">Sheets Sync</TabsTrigger>
+            <TabsTrigger value="drive-sync">Drive Sync</TabsTrigger>
           </TabsList>
           <TabsContent value="groups" className="mt-6">
             <GroupsTab />
@@ -90,8 +104,11 @@ export function GSuitePage() {
           <TabsContent value="sync" className="mt-6">
             <SheetsSyncTab />
           </TabsContent>
+          <TabsContent value="drive-sync" className="mt-6">
+            <DriveSyncTab />
+          </TabsContent>
         </Tabs>
       </div>
     </GSuiteProtected>
-  )
+  );
 }
