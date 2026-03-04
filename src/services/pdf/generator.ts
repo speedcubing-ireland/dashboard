@@ -560,39 +560,42 @@ async function drawScheduleSide(
   pageHeight: number,
 ): Promise<void> {
   const regularFont = await embedFont(ctx.doc, "NotoSans-Regular");
-  await drawName(
-    ctx,
-    page,
-    info.name,
-    "left",
-    offsetX + 3,
-    flipY(pageHeight, offsetY + 7),
-    width - 12,
-    4,
-    "NotoSans-Bold",
-  );
+  let schedH = 0;
+  if (!info.blank) {
+    await drawName(
+      ctx,
+      page,
+      info.name,
+      "left",
+      offsetX + 3,
+      flipY(pageHeight, offsetY + 7),
+      width - 12,
+      4,
+      "NotoSans-Bold",
+    );
 
-  const compidText = `${info.compid}`;
-  const compidWidth = getTextWidth(compidText, regularFont, 7);
-  page.drawText(compidText, {
-    x: mmToPoints(offsetX + width - 6) - compidWidth / 2,
-    y: flipY(pageHeight, offsetY + 6),
-    size: 7,
-    font: regularFont,
-  });
+    const compidText = `${info.compid}`;
+    const compidWidth = getTextWidth(compidText, regularFont, 7);
+    page.drawText(compidText, {
+      x: mmToPoints(offsetX + width - 6) - compidWidth / 2,
+      y: flipY(pageHeight, offsetY + 6),
+      size: 7,
+      font: regularFont,
+    });
 
-  const startY = offsetY + 10;
-  const maxH = height - 10 - 5;
-  const schedH = await drawSchedule(
-    ctx,
-    page,
-    offsetX + 3,
-    startY,
-    width - 6,
-    info,
-    pageHeight,
-    maxH,
-  );
+    const startY = offsetY + 10;
+    const maxH = height - 10 - 5;
+    schedH = await drawSchedule(
+      ctx,
+      page,
+      offsetX + 3,
+      startY,
+      width - 6,
+      info,
+      pageHeight,
+      maxH,
+    );
+  }
 
   const space = height - 10 - schedH;
   if (

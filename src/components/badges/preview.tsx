@@ -23,6 +23,17 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -33,7 +44,7 @@ import {
   loadFlagBytes,
   prepareImages,
 } from "@/services/assets";
-import { generateSingleBadge } from "@/services/pdf/generator";
+import { generateAllBadges, generateSingleBadge } from "@/services/pdf/generator";
 import { useBadgeStore } from "@/stores/badge-config";
 import type { PersonScheduleInfo } from "@/types/wcif";
 import { cn } from "@/utils/cn";
@@ -48,6 +59,9 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [blankDialogOpen, setBlankDialogOpen] = useState(false);
+  const [blankCount, setBlankCount] = useState("1");
+  const [isGeneratingBlank, setIsGeneratingBlank] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const lastPreviewKeyRef = useRef<string | null>(null);
@@ -172,6 +186,71 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
     [previewUrl],
   );
 
+  const handleGenerateBlankLanyards = useCallback(async () => {
+    const count = parseInt(blankCount, 10);
+    if (!Number.isFinite(count) || count <= 0) {
+      toast.error("Please enter a valid positive number");
+      return;
+    }
+
+    setIsGeneratingBlank(true);
+    try {
+      const persons: PersonScheduleInfo[] = Array.from(
+        { length: count },
+        (_, i) => ({
+          blank: true,
+          name: "",
+          wcaid: null,
+          compid: `blank-${i + 1}`,
+          countryCode: "",
+          personalSchedule: {},
+          sortedSchedule: [],
+        }),
+      );
+
+      let qrCode: Uint8Array | undefined;
+      if (config.showWcaLiveQrCode && config.qrCodeText) {
+        const url = extractUrl(config.qrCodeText);
+        if (url) {
+          try {
+            qrCode = await generateQRBytes(url, 200);
+          } catch {}
+        }
+      }
+
+      const images = await prepareImages(config, new Map(), qrCode);
+      const pdfDoc = await generateAllBadges(persons, config, {
+        background: images.background,
+        logo: images.logo,
+        wcaLogo: images.wcaLogo,
+        flags: new Map(),
+        qrCode: images.qrCode,
+      });
+      const pdfBytes = await pdfDoc.save();
+
+      const blob = new Blob([pdfBytes as BlobPart], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${
+        wcif?.shortName || "badges"
+      }-blank-lanyards-${count}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Generated ${count} blank lanyard${count === 1 ? "" : "s"}`);
+      setBlankDialogOpen(false);
+    } catch {
+      toast.error("Failed to generate blank lanyards");
+    } finally {
+      setIsGeneratingBlank(false);
+    }
+  }, [blankCount, config, wcif]);
+
   if (!wcif) {
     return (
       <Card>
@@ -194,19 +273,64 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
             </CardDescription>
           </div>
           {selected && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={generatePreview}
-              disabled={isGenerating}
-              title="Refresh"
-            >
-              <HugeiconsIcon
-                icon={Refresh01Icon}
-                strokeWidth={2}
-                className="size-4"
-              />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={generatePreview}
+                disabled={isGenerating}
+                title="Refresh"
+              >
+                <HugeiconsIcon
+                  icon={Refresh01Icon}
+                  strokeWidth={2}
+                  className="size-4"
+                />
+              </Button>
+              <Dialog open={blankDialogOpen} onOpenChange={setBlankDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" disabled={isGeneratingBlank}>
+                    Blank Lanyard
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Generate Blank Lanyards</DialogTitle>
+                    <DialogDescription>
+                      Enter how many blank lanyards to generate using the
+                      current badge settings.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="blank-count">Number of lanyards</Label>
+                      <Input
+                        id="blank-count"
+                        type="number"
+                        min={1}
+                        value={blankCount}
+                        onChange={(e) => setBlankCount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setBlankDialogOpen(false)}
+                      disabled={isGeneratingBlank}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleGenerateBlankLanyards}
+                      disabled={isGeneratingBlank}
+                    >
+                      {isGeneratingBlank ? "Generating..." : "Generate"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           )}
         </div>
       </CardHeader>
