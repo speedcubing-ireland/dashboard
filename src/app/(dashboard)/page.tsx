@@ -82,6 +82,14 @@ export default function HomePage() {
         />
 
         <FeatureCard
+          title="Certificates"
+          description="Open the WCA certificates site"
+          icon={IdentityCardIcon}
+          href="/certificates"
+          actionLabel="Open Certificates"
+        />
+
+        <FeatureCard
           title="Competitions"
           description="Upcoming competitions and their status"
           icon={CalendarIcon}

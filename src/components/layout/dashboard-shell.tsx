@@ -41,6 +41,7 @@ import { Toaster } from "@/components/ui/sonner";
 const navItems = [
   { title: "Home", href: "/", icon: HomeIcon },
   { title: "Badges", href: "/badges", icon: IdentityCardIcon },
+  { title: "Certificates", href: "/certificates", icon: IdentityCardIcon },
   { title: "Competitions", href: "/competitions", icon: CalendarIcon },
   { title: "Events", href: "/events", icon: CubeIcon },
   { title: "Calendar", href: "/calendar", icon: CalendarIcon },
