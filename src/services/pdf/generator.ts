@@ -411,11 +411,15 @@ async function drawNameSide(
     color: rgb(0, 0, 0),
   });
 
-  const regularFont = await embedFont(ctx.doc, "NotoSans-Regular");
   if (!info.blank) {
     let idText = info.wcaid || "NEWCOMER";
     const color = info.wcaid ? rgb(0, 0, 0) : rgbColor(196, 0, 0);
     if (ctx.config.includeCompetitorId) idText += ` - ID ${info.compid}`;
+    const regularFont = await chooseRenderableFont(
+      ctx.doc,
+      idText,
+      getTextFontCandidates("NotoSans-Regular", idText),
+    );
     const textWidth = getTextWidth(idText, regularFont, 13);
     page.drawText(idText, {
       x: mmToPoints(offsetX + width / 2) - textWidth / 2,
@@ -598,7 +602,6 @@ async function drawScheduleSide(
   height: number,
   pageHeight: number,
 ): Promise<void> {
-  const regularFont = await embedFont(ctx.doc, "NotoSans-Regular");
   let schedH = 0;
   if (!info.blank) {
     await drawName(
@@ -614,6 +617,11 @@ async function drawScheduleSide(
     );
 
     const compidText = `${info.compid}`;
+    const regularFont = await chooseRenderableFont(
+      ctx.doc,
+      compidText,
+      getTextFontCandidates("NotoSans-Regular", compidText),
+    );
     const compidWidth = getTextWidth(compidText, regularFont, 7);
     page.drawText(compidText, {
       x: mmToPoints(offsetX + width - 6) - compidWidth / 2,
@@ -651,7 +659,11 @@ async function drawScheduleSide(
       height: qrSize,
     });
 
-    const qrFont = await embedFont(ctx.doc, "NotoSans-Regular");
+    const qrFont = await chooseRenderableFont(
+      ctx.doc,
+      ctx.config.qrCodeText,
+      getTextFontCandidates("NotoSans-Regular", ctx.config.qrCodeText),
+    );
     const maxTextW = mmToPoints(width - 30);
     const words = ctx.config.qrCodeText.split(" ");
     const lines: string[] = [];
