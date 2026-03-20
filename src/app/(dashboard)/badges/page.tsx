@@ -25,6 +25,7 @@ import {
 } from "@/services/assets";
 import { generateAllBadges } from "@/services/pdf/generator";
 import { useBadgeStore } from "@/stores/badge-config";
+import { getErrorMessage } from "@/utils/error";
 import { buildPersonSchedule } from "@/utils/schedule";
 
 export default function BadgesPage() {
@@ -99,8 +100,8 @@ export default function BadgesPage() {
       URL.revokeObjectURL(url);
 
       toast.success(`Generated ${personsInfo.length} badges`);
-    } catch {
-      toast.error("Failed to generate badges");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to generate badges"));
     } finally {
       setIsGenerating(false);
       setProgress(0);

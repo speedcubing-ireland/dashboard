@@ -21,7 +21,12 @@ import type { BadgeConfig } from "@/types/badge";
 import type { AssignmentInfo, PersonScheduleInfo } from "@/types/wcif";
 import { flipY, mmToPoints, rgbColor } from "@/utils/pdf";
 import { chooseFont, parseLocalName, removeStageWord } from "@/utils/schedule";
-import { embedFont, getTextWidth, preloadFonts } from "./fonts";
+import {
+  chooseRenderableFont,
+  embedFont,
+  getTextWidth,
+  preloadFonts,
+} from "./fonts";
 
 export interface BadgeContext {
   doc: PDFDocument;
@@ -41,6 +46,20 @@ type ScheduleColumn =
   | "group"
   | "station"
   | "staff";
+
+const TEXT_FONT_FALLBACKS = [
+  "NotoSans-Regular",
+  "NotoSans-Bold",
+  "NotoSansSC",
+  "NotoSansArabic",
+  "NotoSansThai",
+  "NotoSansArmenian",
+  "NotoSansGeorgian",
+];
+
+function getTextFontCandidates(preferred: string, text: string): string[] {
+  return [...new Set([preferred, chooseFont(text), ...TEXT_FONT_FALLBACKS])];
+}
 
 function getVisibleColumns(config: BadgeConfig): ScheduleColumn[] {
   const cols: ScheduleColumn[] = [];
@@ -151,7 +170,11 @@ async function drawTextBox(
   });
 
   const textY = flipY(pageHeight, y + yPad);
-  const regularFont = await embedFont(ctx.doc, "NotoSans-Regular");
+  const regularFont = await chooseRenderableFont(
+    ctx.doc,
+    text,
+    getTextFontCandidates("NotoSans-Regular", text),
+  );
   const textWidth = getTextWidth(text, regularFont, fontSize);
 
   const iconWidth = eventCode
@@ -215,16 +238,25 @@ async function drawName(
 ): Promise<void> {
   const { latinName, localName } = parseLocalName(text);
   const fontSize = h * LAYOUT.fontSizeMultiplier;
-  const font = await embedFont(ctx.doc, fontName);
+  const baseFont = await chooseRenderableFont(
+    ctx.doc,
+    latinName,
+    getTextFontCandidates(fontName, latinName),
+  );
 
   if (localName && ctx.config.includeLocalNames) {
-    const localFont = await embedFont(ctx.doc, chooseFont(localName));
+    const localFont = await chooseRenderableFont(
+      ctx.doc,
+      localName,
+      getTextFontCandidates(chooseFont(localName), localName),
+    );
     const parts = [latinName, " (", localName, ")"];
+    const fonts = [baseFont, baseFont, localFont, baseFont];
     const widths = [
-      latinName ? getTextWidth(latinName, font, fontSize) : 0,
-      getTextWidth(" (", font, fontSize),
+      latinName ? getTextWidth(latinName, baseFont, fontSize) : 0,
+      getTextWidth(" (", baseFont, fontSize),
       getTextWidth(localName, localFont, fontSize),
-      getTextWidth(")", font, fontSize),
+      getTextWidth(")", baseFont, fontSize),
     ];
     const total = widths.reduce((a, b) => a + b, 0);
     const scale = Math.min(1, mmToPoints(w) / total);
@@ -234,7 +266,6 @@ async function drawName(
       align === "center"
         ? mmToPoints(x + w / 2) - (total * scale) / 2
         : mmToPoints(x);
-    const fonts = [font, font, localFont, font];
 
     for (let i = 0; i < parts.length; i++) {
       if (parts[i]) {
@@ -243,15 +274,15 @@ async function drawName(
       }
     }
   } else {
-    const textWidth = getTextWidth(latinName, font, fontSize);
+    const textWidth = getTextWidth(latinName, baseFont, fontSize);
     const scale = Math.min(1, mmToPoints(w) / textWidth);
     const scaled = fontSize * scale;
-    const scaledWidth = getTextWidth(latinName, font, scaled);
+    const scaledWidth = getTextWidth(latinName, baseFont, scaled);
     const drawX =
       align === "center"
         ? mmToPoints(x + w / 2) - scaledWidth / 2
         : mmToPoints(x);
-    page.drawText(latinName, { x: drawX, y, size: scaled, font });
+    page.drawText(latinName, { x: drawX, y, size: scaled, font: baseFont });
   }
 }
 
@@ -260,7 +291,11 @@ async function splitNameIntoLines(
   text: string,
   fontSize: number,
 ): Promise<[string, string]> {
-  const font = await embedFont(ctx.doc, "NotoSans-Bold");
+  const font = await chooseRenderableFont(
+    ctx.doc,
+    text,
+    getTextFontCandidates("NotoSans-Bold", text),
+  );
   const bracketIdx = text.indexOf("(");
   let parts: string[];
   if (bracketIdx !== -1) {
@@ -273,10 +308,14 @@ async function splitNameIntoLines(
   if (parts.length < 2) return ["", text];
 
   const lengths = parts.map((p) => {
-    const m = p.match(/(.*)\\s*[(（](.+)[)）]/);
+    const m = p.match(/(.*)\s*[(（](.+)[)）]/);
     if (m && ctx.config.includeLocalNames) {
       const local = m[2].trim();
-      const localFont = embedFont(ctx.doc, chooseFont(local));
+      const localFont = chooseRenderableFont(
+        ctx.doc,
+        local,
+        getTextFontCandidates(chooseFont(local), local),
+      );
       return Promise.resolve(localFont).then(
         (lf) =>
           getTextWidth(`${m[1].trim()} `, font, fontSize) +

@@ -162,7 +162,7 @@ export function parseLocalName(text: string): {
   latinName: string;
   localName: string | null;
 } {
-  const match = text.match(/(.*)\\s*[(（](.+)[)）]/);
+  const match = text.match(/(.*)\s*[(（](.+)[)）]/);
   if (match) return { latinName: match[1].trim(), localName: match[2].trim() };
   return { latinName: text, localName: null };
 }

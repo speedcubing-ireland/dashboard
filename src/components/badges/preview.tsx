@@ -44,10 +44,14 @@ import {
   loadFlagBytes,
   prepareImages,
 } from "@/services/assets";
-import { generateAllBadges, generateSingleBadge } from "@/services/pdf/generator";
+import {
+  generateAllBadges,
+  generateSingleBadge,
+} from "@/services/pdf/generator";
 import { useBadgeStore } from "@/stores/badge-config";
 import type { PersonScheduleInfo } from "@/types/wcif";
 import { cn } from "@/utils/cn";
+import { getErrorMessage } from "@/utils/error";
 import { buildPersonSchedule } from "@/utils/schedule";
 
 interface BadgePreviewProps {
@@ -102,6 +106,7 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
   const previewKey = useMemo(() => {
     if (!personInfo) return null;
     const configHash = JSON.stringify({
+      includeLocalNames: config.includeLocalNames,
       showWcaLiveQrCode: config.showWcaLiveQrCode,
       qrCodeText: config.qrCodeText,
       backgroundImage: config.backgroundImage,
@@ -161,8 +166,8 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
         if (prev) URL.revokeObjectURL(prev);
         return url;
       });
-    } catch {
-      toast.error("Failed to generate preview");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to generate preview"));
     } finally {
       setIsGenerating(false);
     }
@@ -234,18 +239,18 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${
-        wcif?.shortName || "badges"
-      }-blank-lanyards-${count}.pdf`;
+      a.download = `${wcif?.shortName || "badges"}-blank-lanyards-${count}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success(`Generated ${count} blank lanyard${count === 1 ? "" : "s"}`);
+      toast.success(
+        `Generated ${count} blank lanyard${count === 1 ? "" : "s"}`,
+      );
       setBlankDialogOpen(false);
-    } catch {
-      toast.error("Failed to generate blank lanyards");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to generate blank lanyards"));
     } finally {
       setIsGeneratingBlank(false);
     }

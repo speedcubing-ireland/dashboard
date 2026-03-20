@@ -29,7 +29,7 @@ export const DEFAULT_BADGE_CONFIG: BadgeConfig = {
   includeStages: false,
   removeStageWord: false,
   includeCompetitorId: true,
-  includeLocalNames: false,
+  includeLocalNames: true,
   hideStaffOnlyAssignments: false,
   showWcaLiveQrCode: true,
   customScheduleColors: false,
