@@ -39,5 +39,5 @@ export const DEFAULT_BADGE_CONFIG: BadgeConfig = {
   logoImage: ASSET_PATHS.siLogo,
   wcaLogoImage: ASSET_PATHS.wcaLogo,
   qrCodeText:
-    "Live results and group assignments available at: https://bit.ly/3KTXZ6a",
+    "Live results and group assignments available at: https://tinyurl.com/297vt66h",
 };
