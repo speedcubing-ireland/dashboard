@@ -2,6 +2,7 @@
 
 import {
   ArrowRight01Icon,
+  Award01Icon,
   CalendarIcon,
   CubeIcon,
   IdentityCardIcon,
@@ -111,6 +112,14 @@ export default function HomePage() {
           icon={CalendarIcon}
           href="/calendar"
           actionLabel="Subscribe"
+        />
+
+        <FeatureCard
+          title="Achievements"
+          description="View competitor achievements and badge progress"
+          icon={Award01Icon}
+          href="/achievements"
+          actionLabel="Open Achievements"
         />
       </div>
     </div>

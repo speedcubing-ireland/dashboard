@@ -8,27 +8,27 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const CERTIFICATES_URL =
-  "https://speedcubing-ireland.github.io/wca-certificates";
+const ACHIEVEMENTS_URL = "https://achievements.speedcubingireland.com";
 
-export default function CertificatesPage() {
+export default function AchievementsPage() {
   return (
     <div className="container max-w-3xl mx-auto py-8">
       <Card>
         <CardHeader>
-          <CardTitle>Certificates</CardTitle>
+          <CardTitle>Achievements</CardTitle>
           <CardDescription>
-            Open the Speedcubing Ireland WCA certificates tool.
+            Open the Speedcubing Ireland achievements site to view competitor
+            badges and progress.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
             <Link
-              href={CERTIFICATES_URL}
+              href={ACHIEVEMENTS_URL}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Open Certificates
+              Open Achievements
             </Link>
           </Button>
         </CardContent>
