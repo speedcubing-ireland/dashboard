@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/card";
 
 const ACHIEVEMENTS_URL = "https://achievements.speedcubingireland.com";
+const ACHIEVEMENTS_ADMIN_URL =
+  "https://si-api.blueglacier-893fcb86.northeurope.azurecontainerapps.io";
 
 export default function AchievementsPage() {
   return (
@@ -21,14 +23,23 @@ export default function AchievementsPage() {
             badges and progress.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-wrap gap-2">
           <Button asChild>
             <Link
               href={ACHIEVEMENTS_URL}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Open Achievements
+              Open Public Site
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link
+              href={ACHIEVEMENTS_ADMIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open Admin Site
             </Link>
           </Button>
         </CardContent>
