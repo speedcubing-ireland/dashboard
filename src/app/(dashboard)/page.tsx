@@ -10,22 +10,26 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  DASHBOARD_LINKS,
+  type DashboardLink,
+  type DashboardLinkIcon,
+} from "@/data/dashboard-links";
+
+const LINK_ICONS = {
+  "identity-card": IdentityCardIcon,
+  calendar: CalendarIcon,
+  cube: CubeIcon,
+  award: Award01Icon,
+} satisfies Record<DashboardLinkIcon, typeof IdentityCardIcon>;
 
 interface FeatureCardProps {
-  title: string;
-  description: string;
-  icon: typeof IdentityCardIcon;
-  href: string;
-  actionLabel: string;
+  link: DashboardLink;
 }
 
-function FeatureCard({
-  title,
-  description,
-  icon: Icon,
-  href,
-  actionLabel,
-}: FeatureCardProps) {
+function FeatureCard({ link }: FeatureCardProps) {
+  const Icon = LINK_ICONS[link.icon];
+
   return (
     <div className="group flex flex-col h-full relative overflow-hidden rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md">
       <div className="mb-4 p-3 w-fit rounded-lg bg-primary/10 text-primary">
@@ -33,9 +37,9 @@ function FeatureCard({
       </div>
 
       <div className="space-y-2 mb-6 flex-1 text-left">
-        <h3 className="font-semibold text-xl">{title}</h3>
+        <h3 className="font-semibold text-xl">{link.title}</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          {description}
+          {link.description}
         </p>
       </div>
 
@@ -45,8 +49,11 @@ function FeatureCard({
           className="w-full group-hover:border-primary/50 transition-colors"
           variant="outline"
         >
-          <Link href={href} className="flex items-center justify-center gap-2">
-            {actionLabel}
+          <Link
+            href={link.href}
+            className="flex items-center justify-center gap-2"
+          >
+            {link.actionLabel}
             <HugeiconsIcon
               icon={ArrowRight01Icon}
               strokeWidth={2}
@@ -74,53 +81,9 @@ export default function HomePage() {
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl w-full px-6">
-        <FeatureCard
-          title="Badge Generator"
-          description="Generate badges for competitor's lanyards"
-          icon={IdentityCardIcon}
-          href="/badges"
-          actionLabel="Open Generator"
-        />
-
-        <FeatureCard
-          title="Certificates"
-          description="Open the WCA certificates site"
-          icon={IdentityCardIcon}
-          href="/certificates"
-          actionLabel="Open Certificates"
-        />
-
-        <FeatureCard
-          title="Competitions"
-          description="Upcoming competitions and their status"
-          icon={CalendarIcon}
-          href="/competitions"
-          actionLabel="View Competitions"
-        />
-
-        <FeatureCard
-          title="Events"
-          description="Popularity of events at competitions"
-          icon={CubeIcon}
-          href="/events"
-          actionLabel="View Events"
-        />
-
-        <FeatureCard
-          title="Calendar"
-          description="Subscribe to Irish WCA competitions calendar"
-          icon={CalendarIcon}
-          href="/calendar"
-          actionLabel="Subscribe"
-        />
-
-        <FeatureCard
-          title="Achievements"
-          description="View competitor achievements and badge progress"
-          icon={Award01Icon}
-          href="/achievements"
-          actionLabel="Open Achievements"
-        />
+        {DASHBOARD_LINKS.map((link) => (
+          <FeatureCard key={link.id} link={link} />
+        ))}
       </div>
     </div>
   );
