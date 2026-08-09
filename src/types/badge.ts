@@ -1,5 +1,6 @@
 import { ASSET_PATHS } from "@/constants";
 export type BadgeTemplate = "portrait-book" | "portrait-book-2x2";
+export type BadgeRole = "competitor" | "delegate" | "volunteer" | "media";
 
 export interface BadgeConfig {
   template: BadgeTemplate;
@@ -19,10 +20,12 @@ export interface BadgeConfig {
   logoImage: string | null;
   wcaLogoImage: string | null;
   qrCodeText: string;
+  printWithBleed: boolean;
+  bleedBackgroundImage: string | null;
 }
 
 export const DEFAULT_BADGE_CONFIG: BadgeConfig = {
-  template: "portrait-book-2x2",
+  template: "portrait-book",
   includeTimes: true,
   includeStaffing: true,
   includeStations: false,
@@ -40,4 +43,6 @@ export const DEFAULT_BADGE_CONFIG: BadgeConfig = {
   wcaLogoImage: ASSET_PATHS.wcaLogo,
   qrCodeText:
     "Live results and group assignments available at: https://tinyurl.com/297vt66h",
+  printWithBleed: true,
+  bleedBackgroundImage: null,
 };

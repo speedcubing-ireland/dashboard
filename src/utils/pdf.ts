@@ -1,4 +1,4 @@
-import { rgb } from "pdf-lib";
+import { cmyk } from "pdf-lib";
 
 export function mmToPoints(mm: number): number {
   return (mm * 72.0) / 25.4;
@@ -29,6 +29,18 @@ export function base64ToBytes(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-export function rgbColor(r: number, g: number, b: number) {
-  return rgb(r / 255, g / 255, b / 255);
+export function cmykColorFromRgb(r: number, g: number, b: number) {
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const key = 1 - Math.max(red, green, blue);
+
+  if (key === 1) return cmyk(0, 0, 0, 1);
+
+  return cmyk(
+    (1 - red - key) / (1 - key),
+    (1 - green - key) / (1 - key),
+    (1 - blue - key) / (1 - key),
+    key,
+  );
 }

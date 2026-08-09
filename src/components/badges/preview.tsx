@@ -112,6 +112,8 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
       backgroundImage: config.backgroundImage,
       logoImage: config.logoImage,
       wcaLogoImage: config.wcaLogoImage,
+      printWithBleed: config.printWithBleed,
+      bleedBackgroundImage: config.bleedBackgroundImage,
     });
     return `${personInfo.compid}-${configHash}`;
   }, [personInfo, config]);
@@ -150,6 +152,9 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
       const images = await prepareImages(config, flagMap, qrCode);
       const pdfDoc = await generateSingleBadge(personInfo, config, {
         background: images.background,
+        roleBackgrounds: images.roleBackgrounds,
+        roleBleedBackgrounds: images.roleBleedBackgrounds,
+        bleedBackground: images.bleedBackground,
         logo: images.logo,
         wcaLogo: images.wcaLogo,
         flag: flagMap.get(personInfo.countryCode),
@@ -204,6 +209,7 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
         { length: count },
         (_, i) => ({
           blank: true,
+          badgeRole: "competitor",
           name: "",
           wcaid: null,
           compid: `blank-${i + 1}`,
@@ -226,6 +232,9 @@ export function BadgePreview({ isSettingsOpen = false }: BadgePreviewProps) {
       const images = await prepareImages(config, new Map(), qrCode);
       const pdfDoc = await generateAllBadges(persons, config, {
         background: images.background,
+        roleBackgrounds: images.roleBackgrounds,
+        roleBleedBackgrounds: images.roleBleedBackgrounds,
+        bleedBackground: images.bleedBackground,
         logo: images.logo,
         wcaLogo: images.wcaLogo,
         flags: new Map(),

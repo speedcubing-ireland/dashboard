@@ -1,10 +1,12 @@
 import fontkit from "@pdf-lib/fontkit";
 import {
+  cmyk,
   PDFDocument,
   type PDFFont,
   type PDFImage,
+  PDFName,
   type PDFPage,
-  rgb,
+  PDFString,
 } from "pdf-lib";
 import {
   A4L_HEIGHT,
@@ -12,14 +14,16 @@ import {
   A6L_HEIGHT,
   A6L_WIDTH,
   A7_WIDTH,
+  ASSET_PATHS,
+  BLEED,
   COLUMN_RATIOS,
   EVENT_ICON_MAP,
   LAYOUT,
   WEEK_DAYS,
 } from "@/constants";
-import type { BadgeConfig } from "@/types/badge";
+import type { BadgeConfig, BadgeRole } from "@/types/badge";
 import type { AssignmentInfo, PersonScheduleInfo } from "@/types/wcif";
-import { flipY, mmToPoints, rgbColor } from "@/utils/pdf";
+import { cmykColorFromRgb, flipY, mmToPoints } from "@/utils/pdf";
 import { chooseFont, parseLocalName, removeStageWord } from "@/utils/schedule";
 import {
   chooseRenderableFont,
@@ -32,12 +36,51 @@ export interface BadgeContext {
   doc: PDFDocument;
   fonts: Record<string, PDFFont>;
   backgroundImage: PDFImage | null;
+  roleBackgroundImages: Partial<Record<BadgeRole, PDFImage>>;
+  roleBleedBackgroundImages: Partial<Record<BadgeRole, PDFImage>>;
+  bleedBackgroundImage: PDFImage | null;
   logoImage: PDFImage | null;
   wcaLogoImage: PDFImage | null;
   flagImages: Map<string, PDFImage>;
   qrCodeImage: PDFImage | null;
   config: BadgeConfig;
+  // Bleed margin in mm (0 when printing without bleed).
+  bleed: number;
 }
+
+// Which outer edges of a badge sit on the sheet's trim edge and therefore
+// need the background extended into the bleed area. The left edge is never
+// bled as it is the fold in the middle of the badge.
+interface BleedEdges {
+  top: boolean;
+  right: boolean;
+  bottom: boolean;
+}
+
+const NO_BLEED: BleedEdges = { top: false, right: false, bottom: false };
+
+// Illustrator coordinates for the variable fields in the 2026 badge artwork.
+// All positions are relative to the A7 name-side trim, measured from its top-left.
+const BADGE_NAME_LAYOUT = {
+  firstNameFontSize: 24.17,
+  firstNameTop: 68.66,
+  secondNameFontSize: 17.03,
+  secondNameTop: 78.43,
+  nameCenterX: A7_WIDTH / 2,
+  nameMaxWidth: 66,
+  detailsFontSize: 9.43,
+  detailsTop: 87.16,
+  wcaIdCenterX: 16.497,
+  wcaIdMaxWidth: 23.069,
+  competitorIdCenterX: 57.752,
+  competitorIdMaxWidth: 15.386,
+  flagX: 37.125 - 8.26 / 2,
+  flagTop: 89.291 - 4.13 / 2,
+  flagWidth: 8.26,
+  flagHeight: 4.13,
+} as const;
+
+let fogra39ProfilePromise: Promise<Uint8Array> | null = null;
 
 type ScheduleColumn =
   | "time"
@@ -128,7 +171,7 @@ async function drawEventIcon(
     const size = fontSize * LAYOUT.iconSizeRatio * scale;
     let width = font.widthOfTextAtSize(char, size);
     if (!width || Number.isNaN(width)) width = size;
-    page.drawText(char, { x, y, size, font, color: rgb(0, 0, 0) });
+    page.drawText(char, { x, y, size, font, color: cmyk(0, 0, 0, 1) });
     return width;
   } catch {
     return 0;
@@ -164,8 +207,8 @@ async function drawTextBox(
     y: boxY - boxH,
     width: mmToPoints(w),
     height: boxH,
-    color: rgbColor(fillColor[0], fillColor[1], fillColor[2]),
-    borderColor: rgb(0.5, 0.5, 0.5),
+    color: cmykColorFromRgb(fillColor[0], fillColor[1], fillColor[2]),
+    borderColor: cmyk(0, 0, 0, 0.5),
     borderWidth: 0.1,
   });
 
@@ -346,6 +389,42 @@ async function splitNameIntoLines(
   return ["", text];
 }
 
+async function drawCenteredFittedText(
+  ctx: BadgeContext,
+  page: PDFPage,
+  text: string,
+  centerX: number,
+  top: number,
+  maxWidth: number,
+  fontSize: number,
+  fontCandidates: string[],
+  offsetX: number,
+  offsetY: number,
+  pageHeight: number,
+): Promise<void> {
+  if (!text) return;
+
+  const font = await chooseRenderableFont(ctx.doc, text, [
+    ...fontCandidates,
+    ...getTextFontCandidates(fontCandidates[0], text),
+  ]);
+  const naturalWidth = getTextWidth(text, font, fontSize);
+  const size =
+    naturalWidth > 0
+      ? fontSize * Math.min(1, mmToPoints(maxWidth) / naturalWidth)
+      : fontSize;
+  const width = getTextWidth(text, font, size);
+  const ascent = font.heightAtSize(size, { descender: false });
+
+  page.drawText(text, {
+    x: mmToPoints(offsetX + centerX) - width / 2,
+    y: flipY(pageHeight, offsetY + top) - ascent,
+    size,
+    font,
+    color: cmyk(0, 0, 0, 1),
+  });
+}
+
 async function drawNameSide(
   ctx: BadgeContext,
   page: PDFPage,
@@ -355,127 +434,154 @@ async function drawNameSide(
   width: number,
   height: number,
   pageHeight: number,
+  bleedEdges: BleedEdges = NO_BLEED,
 ): Promise<void> {
-  if (ctx.backgroundImage) {
-    const areaW = mmToPoints(width);
-    const areaH = mmToPoints(height);
-    const drawW = areaW;
-    const drawH = areaH;
+  const roleBackground =
+    ctx.roleBackgroundImages[info.badgeRole] ?? ctx.backgroundImage;
+  const dedicatedBleedBackground =
+    ctx.bleed > 0 && bleedEdges.top && bleedEdges.right && bleedEdges.bottom
+      ? ctx.roleBleedBackgroundImages[info.badgeRole]
+      : undefined;
+
+  if (dedicatedBleedBackground) {
+    page.drawImage(dedicatedBleedBackground, {
+      x: mmToPoints(offsetX),
+      y: flipY(pageHeight, offsetY + height + ctx.bleed),
+      width: mmToPoints(width + ctx.bleed),
+      height: mmToPoints(height + 2 * ctx.bleed),
+    });
+  } else if (roleBackground) {
+    // Extend the background past the trim edge into the bleed area on the
+    // edges that sit on the sheet boundary when no dedicated artwork exists.
+    const topExt = bleedEdges.top ? ctx.bleed : 0;
+    const bottomExt = bleedEdges.bottom ? ctx.bleed : 0;
+    const rightExt = bleedEdges.right ? ctx.bleed : 0;
     const drawX = mmToPoints(offsetX);
-    const drawY = flipY(pageHeight, offsetY) - drawH;
-    page.drawImage(ctx.backgroundImage, {
+    const drawY = flipY(pageHeight, offsetY + height + bottomExt);
+    page.drawImage(roleBackground, {
       x: drawX,
       y: drawY,
-      width: drawW,
-      height: drawH,
+      width: mmToPoints(width + rightExt),
+      height: mmToPoints(height + topExt + bottomExt),
     });
   }
+
+  // The media artwork is already complete and is printed on both sides.
+  if (info.badgeRole === "media") return;
 
   if (!info.blank) {
     const lines = await splitNameIntoLines(
       ctx,
-      info.name,
-      10 * LAYOUT.fontSizeMultiplier,
+      info.name.toUpperCase(),
+      BADGE_NAME_LAYOUT.secondNameFontSize,
     );
-    const lineSpacing = mmToPoints(9);
-    const y1 = flipY(pageHeight, offsetY + 71);
-    await drawName(
+    const displayLines: [string, string] = lines[0] ? lines : [lines[1], ""];
+    await drawCenteredFittedText(
       ctx,
       page,
-      lines[0],
-      "center",
-      offsetX + 3,
-      y1,
-      width - 6,
-      10,
+      displayLines[0],
+      BADGE_NAME_LAYOUT.nameCenterX,
+      BADGE_NAME_LAYOUT.firstNameTop,
+      BADGE_NAME_LAYOUT.nameMaxWidth,
+      BADGE_NAME_LAYOUT.firstNameFontSize,
+      ["InputSans-Bold"],
+      offsetX,
+      offsetY,
+      pageHeight,
     );
-    await drawName(
+    await drawCenteredFittedText(
       ctx,
       page,
-      lines[1],
-      "center",
-      offsetX + 3,
-      y1 - lineSpacing,
-      width - 6,
-      10,
+      displayLines[1],
+      BADGE_NAME_LAYOUT.nameCenterX,
+      BADGE_NAME_LAYOUT.secondNameTop,
+      BADGE_NAME_LAYOUT.nameMaxWidth,
+      BADGE_NAME_LAYOUT.secondNameFontSize,
+      ["InputSans-Bold"],
+      offsetX,
+      offsetY,
+      pageHeight,
     );
   }
-
-  page.drawLine({
-    start: { x: mmToPoints(offsetX + 5), y: flipY(pageHeight, offsetY + 83) },
-    end: {
-      x: mmToPoints(offsetX + width - 5),
-      y: flipY(pageHeight, offsetY + 83),
-    },
-    thickness: mmToPoints(0.25),
-    color: rgb(0, 0, 0),
-  });
 
   if (!info.blank) {
-    let idText = info.wcaid || "NEWCOMER";
-    const color = info.wcaid ? rgb(0, 0, 0) : rgbColor(196, 0, 0);
-    if (ctx.config.includeCompetitorId) idText += ` - ID ${info.compid}`;
-    const regularFont = await chooseRenderableFont(
-      ctx.doc,
-      idText,
-      getTextFontCandidates("NotoSans-Regular", idText),
+    await drawCenteredFittedText(
+      ctx,
+      page,
+      info.wcaid || "NEWCOMER",
+      BADGE_NAME_LAYOUT.wcaIdCenterX,
+      BADGE_NAME_LAYOUT.detailsTop,
+      BADGE_NAME_LAYOUT.wcaIdMaxWidth,
+      BADGE_NAME_LAYOUT.detailsFontSize,
+      ["InputSansCondensed-Bold"],
+      offsetX,
+      offsetY,
+      pageHeight,
     );
-    const textWidth = getTextWidth(idText, regularFont, 13);
-    page.drawText(idText, {
-      x: mmToPoints(offsetX + width / 2) - textWidth / 2,
-      y: flipY(pageHeight, offsetY + 88),
-      size: 13,
-      font: regularFont,
-      color,
-    });
-  }
-
-  const logoH = mmToPoints(10);
-  const logoY = flipY(pageHeight, offsetY + height - 13) - logoH;
-
-  if (ctx.wcaLogoImage) {
-    const r = ctx.wcaLogoImage.width / ctx.wcaLogoImage.height;
-    page.drawImage(ctx.wcaLogoImage, {
-      x: mmToPoints(offsetX + 3),
-      y: logoY,
-      width: mmToPoints(10 * r),
-      height: logoH,
-    });
-  }
-
-  if (ctx.logoImage) {
-    const r = ctx.logoImage.width / ctx.logoImage.height;
-    page.drawImage(ctx.logoImage, {
-      x: mmToPoints(offsetX + width - 10 * r - 3),
-      y: logoY,
-      width: mmToPoints(10 * r),
-      height: logoH,
-    });
+    if (ctx.config.includeCompetitorId) {
+      await drawCenteredFittedText(
+        ctx,
+        page,
+        `ID #${info.compid}`,
+        BADGE_NAME_LAYOUT.competitorIdCenterX,
+        BADGE_NAME_LAYOUT.detailsTop,
+        BADGE_NAME_LAYOUT.competitorIdMaxWidth,
+        BADGE_NAME_LAYOUT.detailsFontSize,
+        ["InputSansCondensed-Bold"],
+        offsetX,
+        offsetY,
+        pageHeight,
+      );
+    }
   }
 
   if (!info.blank) {
     const flag = ctx.flagImages.get(info.countryCode);
     if (flag) {
-      const r = flag.width / flag.height;
-      const flagW = r * 5;
-      const flagH = mmToPoints(5);
       page.drawImage(flag, {
-        x: mmToPoints(offsetX + (width - flagW) / 2),
-        y: flipY(pageHeight, offsetY + height - 15) - flagH,
-        width: mmToPoints(flagW),
-        height: flagH,
+        x: mmToPoints(offsetX + BADGE_NAME_LAYOUT.flagX),
+        y:
+          flipY(pageHeight, offsetY + BADGE_NAME_LAYOUT.flagTop) -
+          mmToPoints(BADGE_NAME_LAYOUT.flagHeight),
+        width: mmToPoints(BADGE_NAME_LAYOUT.flagWidth),
+        height: mmToPoints(BADGE_NAME_LAYOUT.flagHeight),
       });
-      if (!["np", "tw"].includes(info.countryCode)) {
-        page.drawRectangle({
-          x: mmToPoints(offsetX + (width - flagW) / 2),
-          y: flipY(pageHeight, offsetY + height - 15) - flagH,
-          width: mmToPoints(flagW),
-          height: flagH,
-          borderColor: rgb(0, 0, 0),
-          borderWidth: 0.1,
-        });
-      }
     }
+  }
+}
+
+function drawMediaSpread(
+  ctx: BadgeContext,
+  page: PDFPage,
+  offsetX: number,
+  offsetY: number,
+  pageHeight: number,
+): void {
+  const trimBackground = ctx.roleBackgroundImages.media;
+  const bleedBackground = ctx.roleBleedBackgroundImages.media;
+
+  // Paint both full-bleed copies first, then cover their overlap at the fold
+  // with the two exact trim images. This preserves bleed on both outer edges.
+  if (ctx.bleed > 0 && bleedBackground) {
+    for (const halfX of [offsetX, offsetX + A7_WIDTH]) {
+      page.drawImage(bleedBackground, {
+        x: mmToPoints(halfX - ctx.bleed),
+        y: flipY(pageHeight, offsetY + A6L_HEIGHT + ctx.bleed),
+        width: mmToPoints(A7_WIDTH + 2 * ctx.bleed),
+        height: mmToPoints(A6L_HEIGHT + 2 * ctx.bleed),
+      });
+    }
+  }
+
+  const trimImage = trimBackground ?? bleedBackground;
+  if (!trimImage) return;
+  for (const halfX of [offsetX, offsetX + A7_WIDTH]) {
+    page.drawImage(trimImage, {
+      x: mmToPoints(halfX),
+      y: flipY(pageHeight, offsetY + A6L_HEIGHT),
+      width: mmToPoints(A7_WIDTH),
+      height: mmToPoints(A6L_HEIGHT),
+    });
   }
 }
 
@@ -602,6 +708,21 @@ async function drawScheduleSide(
   height: number,
   pageHeight: number,
 ): Promise<void> {
+  if (info.badgeRole === "media") {
+    const background = ctx.roleBackgroundImages.media;
+    if (background) {
+      page.drawImage(background, {
+        x: mmToPoints(offsetX),
+        y: flipY(pageHeight, offsetY + height),
+        width: mmToPoints(width),
+        height: mmToPoints(height),
+      });
+    }
+    return;
+  }
+
+  if (info.badgeOnly) return;
+
   let schedH = 0;
   if (!info.blank) {
     await drawName(
@@ -699,7 +820,13 @@ async function drawBadge(
   offsetX: number,
   offsetY: number,
   pageHeight: number,
+  bleedEdges: BleedEdges = NO_BLEED,
 ): Promise<void> {
+  if (info.badgeRole === "media") {
+    drawMediaSpread(ctx, page, offsetX, offsetY, pageHeight);
+    return;
+  }
+
   const scheduleWidth = A6L_WIDTH - A7_WIDTH;
   const nameWidth = A7_WIDTH;
   await drawScheduleSide(
@@ -721,6 +848,7 @@ async function drawBadge(
     nameWidth,
     A6L_HEIGHT,
     pageHeight,
+    bleedEdges,
   );
   page.drawLine({
     start: {
@@ -732,31 +860,107 @@ async function drawBadge(
       y: flipY(pageHeight, offsetY + A6L_HEIGHT),
     },
     thickness: 0.5,
-    color: rgb(0.8, 0.8, 0.8),
+    color: cmyk(0, 0, 0, 0.2),
   });
 }
 
-function drawCuttingLines(page: PDFPage): void {
+function drawCuttingLines(page: PDFPage, bleed = 0): void {
+  const cx = mmToPoints(bleed + A4L_WIDTH / 2);
+  const cy = mmToPoints(bleed + A4L_HEIGHT / 2);
+  const left = mmToPoints(bleed);
+  const right = mmToPoints(bleed + A4L_WIDTH);
+  const bottom = mmToPoints(bleed);
+  const top = mmToPoints(bleed + A4L_HEIGHT);
   page.drawLine({
-    start: { x: mmToPoints(A4L_WIDTH / 2), y: 0 },
-    end: { x: mmToPoints(A4L_WIDTH / 2), y: mmToPoints(A4L_HEIGHT) },
+    start: { x: cx, y: bottom },
+    end: { x: cx, y: top },
     thickness: 0.25,
-    color: rgb(0.5, 0.5, 0.5),
+    color: cmyk(0, 0, 0, 0.5),
     dashArray: [1],
   });
   page.drawLine({
-    start: { x: 0, y: mmToPoints(A4L_HEIGHT / 2) },
-    end: { x: mmToPoints(A4L_WIDTH), y: mmToPoints(A4L_HEIGHT / 2) },
+    start: { x: left, y: cy },
+    end: { x: right, y: cy },
     thickness: 0.25,
-    color: rgb(0.5, 0.5, 0.5),
+    color: cmyk(0, 0, 0, 0.5),
     dashArray: [1],
   });
+}
+
+function setPrintBoxes(
+  page: PDFPage,
+  bleed: number,
+  trimW: number,
+  trimH: number,
+): void {
+  if (!bleed) return;
+
+  page.setBleedBox(
+    0,
+    0,
+    mmToPoints(trimW + 2 * bleed),
+    mmToPoints(trimH + 2 * bleed),
+  );
+  page.setTrimBox(
+    mmToPoints(bleed),
+    mmToPoints(bleed),
+    mmToPoints(trimW),
+    mmToPoints(trimH),
+  );
+}
+
+async function loadFogra39Profile(): Promise<Uint8Array> {
+  fogra39ProfilePromise ??= fetch(ASSET_PATHS.fogra39Profile).then(
+    async (res) => {
+      if (!res.ok) throw new Error("Failed to load Coated FOGRA39 ICC profile");
+      return new Uint8Array(await res.arrayBuffer());
+    },
+  );
+  return fogra39ProfilePromise;
+}
+
+async function embedFogra39OutputIntent(doc: PDFDocument): Promise<void> {
+  const profile = await loadFogra39Profile();
+  const context = doc.context;
+  const profileStream = context.flateStream(profile, {
+    N: 4,
+    Alternate: "DeviceCMYK",
+  });
+  const profileRef = context.register(profileStream);
+  const outputIntent = context.obj({
+    Type: "OutputIntent",
+    S: "GTS_PDFX",
+    OutputConditionIdentifier: PDFString.of("FOGRA39"),
+    OutputCondition: PDFString.of("Coated FOGRA39 (ISO 12647-2:2004)"),
+    RegistryName: PDFString.of("https://www.color.org"),
+    Info: PDFString.of("Coated FOGRA39 (ISO 12647-2:2004)"),
+    DestOutputProfile: profileRef,
+  });
+  const outputIntentRef = context.register(outputIntent);
+
+  doc.catalog.set(PDFName.of("OutputIntents"), context.obj([outputIntentRef]));
+}
+
+function isJpeg(bytes: Uint8Array): boolean {
+  return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+}
+
+function isPng(bytes: Uint8Array): boolean {
+  return (
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  );
 }
 
 async function embedImages(
   doc: PDFDocument,
   images: {
     background?: Uint8Array;
+    roleBackgrounds?: Partial<Record<BadgeRole, Uint8Array>>;
+    roleBleedBackgrounds?: Partial<Record<BadgeRole, Uint8Array>>;
+    bleedBackground?: Uint8Array;
     logo?: Uint8Array;
     wcaLogo?: Uint8Array;
     flags: Map<string, Uint8Array>;
@@ -764,11 +968,23 @@ async function embedImages(
   },
 ) {
   const flagImages = new Map<string, PDFImage>();
-  const embed = async (bytes?: Uint8Array) =>
-    bytes ? doc.embedPng(bytes) : null;
+  const roleBackgroundImages: Partial<Record<BadgeRole, PDFImage>> = {};
+  const roleBleedBackgroundImages: Partial<Record<BadgeRole, PDFImage>> = {};
+  const embed = async (bytes?: Uint8Array) => {
+    if (!bytes) return null;
+    if (isJpeg(bytes)) return doc.embedJpg(bytes);
+    if (isPng(bytes)) return doc.embedPng(bytes);
 
-  const [bg, logo, wca, qr] = await Promise.all([
+    try {
+      return await doc.embedPng(bytes);
+    } catch {
+      return doc.embedJpg(bytes);
+    }
+  };
+
+  const [bg, bleedBg, logo, wca, qr] = await Promise.all([
     embed(images.background),
+    embed(images.bleedBackground),
     embed(images.logo),
     embed(images.wcaLogo),
     embed(images.qrCode),
@@ -776,12 +992,27 @@ async function embedImages(
 
   for (const [code, bytes] of images.flags) {
     try {
-      flagImages.set(code, await doc.embedPng(bytes));
+      const flag = await embed(bytes);
+      if (flag) flagImages.set(code, flag);
     } catch {}
+  }
+
+  for (const [role, bytes] of Object.entries(images.roleBackgrounds ?? {})) {
+    const image = await embed(bytes);
+    if (image) roleBackgroundImages[role as BadgeRole] = image;
+  }
+  for (const [role, bytes] of Object.entries(
+    images.roleBleedBackgrounds ?? {},
+  )) {
+    const image = await embed(bytes);
+    if (image) roleBleedBackgroundImages[role as BadgeRole] = image;
   }
 
   return {
     backgroundImage: bg,
+    roleBackgroundImages,
+    roleBleedBackgroundImages,
+    bleedBackgroundImage: bleedBg,
     logoImage: logo,
     wcaLogoImage: wca,
     flagImages,
@@ -794,6 +1025,9 @@ export async function generateSingleBadge(
   config: BadgeConfig,
   images: {
     background?: Uint8Array;
+    roleBackgrounds?: Partial<Record<BadgeRole, Uint8Array>>;
+    roleBleedBackgrounds?: Partial<Record<BadgeRole, Uint8Array>>;
+    bleedBackground?: Uint8Array;
     logo?: Uint8Array;
     wcaLogo?: Uint8Array;
     flag?: Uint8Array;
@@ -802,13 +1036,19 @@ export async function generateSingleBadge(
 ): Promise<PDFDocument> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
+  await embedFogra39OutputIntent(doc);
 
   const flagMap = new Map<string, Uint8Array>();
   if (images.flag) flagMap.set(info.countryCode, images.flag);
 
   const embedded = await embedImages(doc, { ...images, flags: flagMap });
-  const page = doc.addPage([mmToPoints(A6L_WIDTH), mmToPoints(A6L_HEIGHT)]);
-  const pageHeight = mmToPoints(A6L_HEIGHT);
+  const bleed = config.printWithBleed ? BLEED : 0;
+  const page = doc.addPage([
+    mmToPoints(A6L_WIDTH + 2 * bleed),
+    mmToPoints(A6L_HEIGHT + 2 * bleed),
+  ]);
+  setPrintBoxes(page, bleed, A6L_WIDTH, A6L_HEIGHT);
+  const pageHeight = mmToPoints(A6L_HEIGHT + 2 * bleed);
   const scheduleWidth = A6L_WIDTH - A7_WIDTH;
   const nameWidth = A7_WIDTH;
 
@@ -816,37 +1056,46 @@ export async function generateSingleBadge(
     doc,
     fonts: await preloadFonts(doc),
     config,
+    bleed,
     ...embedded,
   };
 
-  await drawScheduleSide(
-    ctx,
-    page,
-    info,
-    0,
-    0,
-    scheduleWidth,
-    A6L_HEIGHT,
-    pageHeight,
-  );
-  await drawNameSide(
-    ctx,
-    page,
-    info,
-    scheduleWidth,
-    0,
-    nameWidth,
-    A6L_HEIGHT,
-    pageHeight,
-  );
+  if (info.badgeRole === "media") {
+    drawMediaSpread(ctx, page, bleed, bleed, pageHeight);
+  } else {
+    await drawScheduleSide(
+      ctx,
+      page,
+      info,
+      bleed,
+      bleed,
+      scheduleWidth,
+      A6L_HEIGHT,
+      pageHeight,
+    );
+    await drawNameSide(
+      ctx,
+      page,
+      info,
+      bleed + scheduleWidth,
+      bleed,
+      nameWidth,
+      A6L_HEIGHT,
+      pageHeight,
+      // A single badge fills the sheet: name side bleeds on all outer edges.
+      { top: true, right: true, bottom: true },
+    );
+  }
 
-  const dividerX = mmToPoints(scheduleWidth);
-  page.drawLine({
-    start: { x: dividerX, y: pageHeight },
-    end: { x: dividerX, y: 0 },
-    thickness: 0.5,
-    color: rgb(0.8, 0.8, 0.8),
-  });
+  const dividerX = mmToPoints(bleed + scheduleWidth);
+  if (info.badgeRole !== "media") {
+    page.drawLine({
+      start: { x: dividerX, y: pageHeight },
+      end: { x: dividerX, y: 0 },
+      thickness: 0.5,
+      color: cmyk(0, 0, 0, 0.2),
+    });
+  }
 
   return doc;
 }
@@ -856,6 +1105,9 @@ export async function generateAllBadges(
   config: BadgeConfig,
   images: {
     background?: Uint8Array;
+    roleBackgrounds?: Partial<Record<BadgeRole, Uint8Array>>;
+    roleBleedBackgrounds?: Partial<Record<BadgeRole, Uint8Array>>;
+    bleedBackground?: Uint8Array;
     logo?: Uint8Array;
     wcaLogo?: Uint8Array;
     flags: Map<string, Uint8Array>;
@@ -865,50 +1117,67 @@ export async function generateAllBadges(
 ): Promise<PDFDocument> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
+  await embedFogra39OutputIntent(doc);
 
   const embedded = await embedImages(doc, images);
+  const bleed = config.printWithBleed ? BLEED : 0;
   const ctx: BadgeContext = {
     doc,
     fonts: await preloadFonts(doc),
     config,
+    bleed,
     ...embedded,
   };
 
-  if (config.template === "portrait-book") {
+  const template = config.printWithBleed ? "portrait-book" : config.template;
+
+  if (template === "portrait-book") {
+    const pageHeight = mmToPoints(A6L_HEIGHT + 2 * bleed);
     for (let i = 0; i < persons.length; i++) {
-      const page = doc.addPage([mmToPoints(A6L_WIDTH), mmToPoints(A6L_HEIGHT)]);
-      const pageHeight = mmToPoints(A6L_HEIGHT);
+      const page = doc.addPage([
+        mmToPoints(A6L_WIDTH + 2 * bleed),
+        mmToPoints(A6L_HEIGHT + 2 * bleed),
+      ]);
+      setPrintBoxes(page, bleed, A6L_WIDTH, A6L_HEIGHT);
       const scheduleWidth = A6L_WIDTH - A7_WIDTH;
       const nameWidth = A7_WIDTH;
 
-      await drawScheduleSide(
-        ctx,
-        page,
-        persons[i],
-        0,
-        0,
-        scheduleWidth,
-        A6L_HEIGHT,
-        pageHeight,
-      );
-      await drawNameSide(
-        ctx,
-        page,
-        persons[i],
-        scheduleWidth,
-        0,
-        nameWidth,
-        A6L_HEIGHT,
-        pageHeight,
-      );
+      if (persons[i].badgeRole === "media") {
+        drawMediaSpread(ctx, page, bleed, bleed, pageHeight);
+      } else {
+        await drawScheduleSide(
+          ctx,
+          page,
+          persons[i],
+          bleed,
+          bleed,
+          scheduleWidth,
+          A6L_HEIGHT,
+          pageHeight,
+        );
+        await drawNameSide(
+          ctx,
+          page,
+          persons[i],
+          bleed + scheduleWidth,
+          bleed,
+          nameWidth,
+          A6L_HEIGHT,
+          pageHeight,
+          // One badge per sheet: name side bleeds on all outer edges.
+          { top: true, right: true, bottom: true },
+        );
+      }
 
-      const dividerX = mmToPoints(scheduleWidth);
-      page.drawLine({
-        start: { x: dividerX, y: pageHeight },
-        end: { x: dividerX, y: 0 },
-        thickness: 0.5,
-        color: rgb(0.8, 0.8, 0.8),
-      });
+      const dividerX = mmToPoints(bleed + scheduleWidth);
+      if (persons[i].badgeRole !== "media") {
+        page.drawLine({
+          start: { x: dividerX, y: pageHeight },
+          end: { x: dividerX, y: 0 },
+          thickness: 0.5,
+          color: cmyk(0, 0, 0, 0.2),
+        });
+      }
 
       if (onProgress) {
         onProgress(i + 1, persons.length);
@@ -917,38 +1186,39 @@ export async function generateAllBadges(
     }
   } else {
     let page: PDFPage | undefined;
+    const pageHeight = mmToPoints(A4L_HEIGHT + 2 * bleed);
 
     for (let i = 0; i < persons.length; i++) {
       if (i % 4 === 0) {
-        if (page) drawCuttingLines(page);
-        page = doc.addPage([mmToPoints(A4L_WIDTH), mmToPoints(A4L_HEIGHT)]);
-        drawCuttingLines(page);
+        page = doc.addPage([
+          mmToPoints(A4L_WIDTH + 2 * bleed),
+          mmToPoints(A4L_HEIGHT + 2 * bleed),
+        ]);
+        drawCuttingLines(page, bleed);
       }
 
       if (!page) throw new Error("Page failed to initialize");
 
       const col = i % 2;
       const row = Math.floor((i % 4) / 2);
-      const offsetX = col * (A4L_WIDTH / 2) + (A4L_WIDTH / 2 - A6L_WIDTH) / 2;
+      const offsetX =
+        bleed + col * (A4L_WIDTH / 2) + (A4L_WIDTH / 2 - A6L_WIDTH) / 2;
       const offsetY =
-        row * (A4L_HEIGHT / 2) + (A4L_HEIGHT / 2 - A6L_HEIGHT) / 2;
+        bleed + row * (A4L_HEIGHT / 2) + (A4L_HEIGHT / 2 - A6L_HEIGHT) / 2;
 
-      await drawBadge(
-        ctx,
-        page,
-        persons[i],
-        offsetX,
-        offsetY,
-        mmToPoints(A4L_HEIGHT),
-      );
+      // Only edges on the outer trim of the sheet get bled; internal cuts
+      // between badges are butt cuts. Row 0 is the top row (y grows down).
+      await drawBadge(ctx, page, persons[i], offsetX, offsetY, pageHeight, {
+        top: row === 0,
+        right: col === 1,
+        bottom: row === 1,
+      });
 
       if (onProgress) {
         onProgress(i + 1, persons.length);
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
-
-    if (page) drawCuttingLines(page);
   }
 
   return doc;

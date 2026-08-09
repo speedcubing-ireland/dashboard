@@ -26,7 +26,7 @@ import {
 import { generateAllBadges } from "@/services/pdf/generator";
 import { useBadgeStore } from "@/stores/badge-config";
 import { getErrorMessage } from "@/utils/error";
-import { buildPersonSchedule } from "@/utils/schedule";
+import { buildPersonSchedule, buildSupplementalBadges } from "@/utils/schedule";
 
 export default function BadgesPage() {
   const { wcif, activities, config, error, setWcif, setActivities } =
@@ -65,7 +65,10 @@ export default function BadgesPage() {
         return a.name.localeCompare(b.name);
       });
 
-      const personsInfo = sorted.map((p) => buildPersonSchedule(p, activities));
+      const personsInfo = [
+        ...sorted.map((p) => buildPersonSchedule(p, activities)),
+        ...buildSupplementalBadges(),
+      ];
       const flags = await preloadFlags(personsInfo.map((i) => i.countryCode));
 
       let qrCode: Uint8Array | undefined;

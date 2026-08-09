@@ -5,6 +5,9 @@ export const A6L_HEIGHT = 105;
 export const A7_WIDTH = 74.25;
 export const A7_HEIGHT = 105;
 
+// Bleed margin (mm) added around the trim edge for professional printing.
+export const BLEED = 3;
+
 export const COLUMN_RATIOS = {
   time: 0.21,
   event: 0.31,
@@ -76,13 +79,24 @@ export const WEEK_DAYS = [
 
 export const ASSET_PATHS = {
   backgroundImage: "/images/badge-bg.png",
+  delegateBadge: "/images/badge-delegate.png",
+  volunteerBadge: "/images/badge-volunteer.png",
+  competitorBadge: "/images/badge-competitor.png",
+  mediaBadge: "/images/badge-media.png",
+  delegateBadgeBleed: "/images/badge-delegate-bleed.png",
+  volunteerBadgeBleed: "/images/badge-volunteer-bleed.png",
+  competitorBadgeBleed: "/images/badge-competitor-bleed.png",
+  mediaBadgeBleed: "/images/badge-media-bleed.png",
   siLogo: "/images/si-logo.png",
   wcaLogo: "/images/wca-logo.png",
   chineseTaipeiFlag: "/images/chinese-taipei-flag.png",
   cubingIconsFont: "/fonts/cubing-icons.ttf",
+  fogra39Profile: "/color/CoatedFOGRA39.icc",
 } as const;
 
 export const FONT_URLS: Record<string, string> = {
+  "InputSans-Bold": "/fonts/InputSans-Bold.otf",
+  "InputSansCondensed-Bold": "/fonts/InputSansCondensed-Bold.otf",
   "NotoSans-Regular":
     "https://fonts.gstatic.com/s/notosans/v42/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyD9A99d.ttf",
   "NotoSans-Bold":

@@ -9,6 +9,7 @@ import type {
   Schedule,
   Venue,
 } from "@wca/helpers";
+import type { BadgeRole } from "@/types/badge";
 
 export type {
   Competition,
@@ -58,6 +59,8 @@ export interface DaySchedule {
 
 export interface PersonScheduleInfo {
   blank: boolean;
+  badgeRole: BadgeRole;
+  badgeOnly?: boolean;
   name: string;
   wcaid: string | null;
   compid: number | string;

@@ -26,21 +26,24 @@ import type { BadgeTemplate } from "@/types/badge";
 export function BadgeSettings() {
   const { config, updateConfig } = useBadgeStore();
   const bgRef = useRef<HTMLInputElement>(null);
+  const bleedBgRef = useRef<HTMLInputElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const wcaLogoRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (
     file: File,
-    type: "background" | "logo" | "wcaLogo",
+    type: "background" | "bleedBackground" | "logo" | "wcaLogo",
   ) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
 
-      if (type === "background") {
+      if (type === "background" || type === "bleedBackground") {
+        // The bleed background carries a 3mm margin on the right, top and
+        // bottom (but not the folded left edge), giving a taller aspect ratio.
+        const expected = type === "bleedBackground" ? 77.25 / 111 : 74.25 / 105;
         const img = new Image();
         img.onload = () => {
-          const expected = 74.25 / 105;
           const actual = img.width / img.height;
           if (Math.abs(actual - expected) > 0.02) {
             toast.error(
@@ -48,7 +51,11 @@ export function BadgeSettings() {
             );
             return;
           }
-          updateConfig({ backgroundImage: result });
+          updateConfig(
+            type === "bleedBackground"
+              ? { bleedBackgroundImage: result }
+              : { backgroundImage: result },
+          );
           toast.success("Background uploaded");
         };
         img.src = result;
@@ -88,7 +95,7 @@ export function BadgeSettings() {
         </CardHeader>
         <CardContent>
           <Select
-            value={config.template}
+            value={config.printWithBleed ? "portrait-book" : config.template}
             onValueChange={(v) =>
               updateConfig({ template: v as BadgeTemplate })
             }
@@ -98,11 +105,45 @@ export function BadgeSettings() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="portrait-book">Portrait Book (A6)</SelectItem>
-              <SelectItem value="portrait-book-2x2">
+              <SelectItem
+                value="portrait-book-2x2"
+                disabled={config.printWithBleed}
+              >
                 Portrait Book 2x2 (A4)
               </SelectItem>
             </SelectContent>
           </Select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Print Options</CardTitle>
+          <CardDescription>Add bleed for professional printing</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <SwitchRow
+            id="bleed"
+            label="Print with Bleed (3mm)"
+            checked={config.printWithBleed}
+            onChange={(v) => {
+              updateConfig({
+                printWithBleed: v,
+                ...(v && config.template === "portrait-book-2x2"
+                  ? { template: "portrait-book" as const }
+                  : {}),
+              });
+              if (v && config.template === "portrait-book-2x2") {
+                toast.info("Bleed exports use the single-badge A6 layout");
+              }
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Adds a 3mm bleed around each single-badge sheet without crop marks.
+            The 2x2 A4 layout is disabled while bleed is enabled. Upload a
+            dedicated bleed background below for pixel-perfect edges, otherwise
+            the standard background is stretched to fill the bleed.
+          </p>
         </CardContent>
       </Card>
 
@@ -267,6 +308,42 @@ export function BadgeSettings() {
               A7 size (74.25mm x 105mm)
             </p>
           </div>
+          {config.printWithBleed && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <Label>Bleed Background Image</Label>
+                <div className="flex gap-2">
+                  <Input
+                    ref={bleedBgRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={(e) =>
+                      e.target.files?.[0] &&
+                      handleUpload(e.target.files[0], "bleedBackground")
+                    }
+                    className="hidden"
+                  />
+                  <Button
+                    onClick={() => bleedBgRef.current?.click()}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Upload
+                  </Button>
+                  {config.bleedBackgroundImage && (
+                    <span className="text-sm text-muted-foreground self-center">
+                      Uploaded
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Optional. 77.25mm x 111mm - includes 3mm bleed on the right,
+                  top and bottom (not the folded left edge).
+                </p>
+              </div>
+            </>
+          )}
           <Separator />
           <div className="space-y-2">
             <Label>Organization Logo</Label>

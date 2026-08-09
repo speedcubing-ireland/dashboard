@@ -1,12 +1,85 @@
 import type { Assignment, Competition, Person } from "@wca/helpers";
 import moment from "moment-timezone";
 import { EVENT_MAP } from "@/constants";
+import type { BadgeRole } from "@/types/badge";
 import type {
   DaySchedule,
   PersonScheduleInfo,
   ProcessedActivity,
 } from "@/types/wcif";
 import { hexToRgb } from "./pdf";
+
+const DELEGATE_WCA_IDS = new Set([
+  "2015NICH04",
+  "2019TIMM01",
+  "2016BEAU03",
+  "2015HENN02",
+  "2010CHAN20",
+  "2019KLEV01",
+  "2023CASE06",
+  "2017OTOO03",
+  "2017KELL08",
+]);
+
+// Resolved manually against the IrishChampionship2026 public WCIF. Using WCA
+// IDs avoids ambiguity for the first-name-only entries in the supplied list.
+const VOLUNTEER_WCA_IDS = new Set([
+  "2022OSHE02", // Chris O'Shea
+  "2019BACO02", // Ollie Bacon
+  "2025HARF03", // Steven Harford
+  "2021DOHE02", // Kalin Doherty
+  "2021FINK02", // Ronan Finke
+  "2018SMIT37", // Conor Smith
+  "2019BURK05", // Rían Burke
+  "2023KELL23", // Jane Kelly
+  "2024QUIN29", // Nathan Quinlan
+  "2024DOWL02", // Aoife Dowling
+  "2019BROW10", // Aidan Browne
+  "2021CHOD01", // Daniel Cho
+]);
+
+const SUPPLEMENTAL_VOLUNTEER_NAMES = [
+  "Aoife Tierney",
+  "Caitriona O’Reilly",
+  "Caitríona Ó Torna",
+  "Fiona Olwill",
+  "Kenneth Kirrane",
+  "Jen Keeshan",
+  "PJ Dillon",
+];
+
+function getBadgeRole(wcaId: string | null | undefined): BadgeRole {
+  if (wcaId && DELEGATE_WCA_IDS.has(wcaId)) return "delegate";
+  if (wcaId && VOLUNTEER_WCA_IDS.has(wcaId)) return "volunteer";
+  return "competitor";
+}
+
+export function buildSupplementalBadges(): PersonScheduleInfo[] {
+  const volunteers = SUPPLEMENTAL_VOLUNTEER_NAMES.map((name) => ({
+    blank: false,
+    badgeRole: "volunteer" as const,
+    badgeOnly: true,
+    name,
+    wcaid: "VOLUNTEER",
+    compid: "VOL",
+    countryCode: "ie",
+    personalSchedule: {},
+    sortedSchedule: [],
+  }));
+  const media = Array.from({ length: 6 }, (_, index) => ({
+    blank: false,
+    badgeRole: "media" as const,
+    badgeOnly: true,
+    name: "",
+    wcaid: null,
+    compid: `media-${index + 1}`,
+    countryCode: "",
+    personalSchedule: {},
+    sortedSchedule: [],
+  }));
+
+  return [...volunteers, ...media];
+}
 
 function processAssignment(
   assignment: Assignment,
@@ -89,6 +162,7 @@ export function buildPersonSchedule(
 
   return {
     blank: false,
+    badgeRole: getBadgeRole(person.wcaId),
     name: person.name,
     wcaid: person.wcaId ?? null,
     compid: person.registrantId,

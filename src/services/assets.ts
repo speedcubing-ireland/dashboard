@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { ASSET_PATHS } from "@/constants";
+import type { BadgeRole } from "@/types/badge";
 import { base64ToBytes } from "@/utils/pdf";
 
 export async function loadFlagBytes(countryCode: string): Promise<Uint8Array> {
@@ -67,6 +68,9 @@ async function loadImageData(path: string | null): Promise<string | null> {
 
 export interface ImageAssets {
   background?: Uint8Array;
+  roleBackgrounds: Partial<Record<BadgeRole, Uint8Array>>;
+  roleBleedBackgrounds: Partial<Record<BadgeRole, Uint8Array>>;
+  bleedBackground?: Uint8Array;
   logo?: Uint8Array;
   wcaLogo?: Uint8Array;
   flags: Map<string, Uint8Array>;
@@ -76,21 +80,63 @@ export interface ImageAssets {
 export async function prepareImages(
   config: {
     backgroundImage?: string | null;
+    bleedBackgroundImage?: string | null;
     logoImage?: string | null;
     wcaLogoImage?: string | null;
   },
   flags: Map<string, Uint8Array>,
   qrCode?: Uint8Array,
 ): Promise<ImageAssets> {
-  const assets: ImageAssets = { flags };
+  const assets: ImageAssets = {
+    flags,
+    roleBackgrounds: {},
+    roleBleedBackgrounds: {},
+  };
 
-  const [bg, logo, wca] = await Promise.all([
+  const [
+    bg,
+    volunteerBg,
+    competitorBg,
+    mediaBg,
+    delegateBleedBg,
+    volunteerBleedBg,
+    competitorBleedBg,
+    mediaBleedBg,
+    bleedBg,
+    logo,
+    wca,
+  ] = await Promise.all([
     loadImageData(config.backgroundImage ?? null),
+    loadImageData(ASSET_PATHS.volunteerBadge),
+    loadImageData(ASSET_PATHS.competitorBadge),
+    loadImageData(ASSET_PATHS.mediaBadge),
+    loadImageData(ASSET_PATHS.delegateBadgeBleed),
+    loadImageData(ASSET_PATHS.volunteerBadgeBleed),
+    loadImageData(ASSET_PATHS.competitorBadgeBleed),
+    loadImageData(ASSET_PATHS.mediaBadgeBleed),
+    loadImageData(config.bleedBackgroundImage ?? null),
     loadImageData(config.logoImage ?? null),
     loadImageData(config.wcaLogoImage ?? null),
   ]);
 
-  if (bg) assets.background = base64ToBytes(bg);
+  if (bg) {
+    assets.background = base64ToBytes(bg);
+    assets.roleBackgrounds.delegate = assets.background;
+  }
+  if (volunteerBg)
+    assets.roleBackgrounds.volunteer = base64ToBytes(volunteerBg);
+  if (competitorBg)
+    assets.roleBackgrounds.competitor = base64ToBytes(competitorBg);
+  if (mediaBg) assets.roleBackgrounds.media = base64ToBytes(mediaBg);
+  if (delegateBleedBg)
+    assets.roleBleedBackgrounds.delegate = base64ToBytes(delegateBleedBg);
+  if (volunteerBleedBg)
+    assets.roleBleedBackgrounds.volunteer = base64ToBytes(volunteerBleedBg);
+  if (competitorBleedBg)
+    assets.roleBleedBackgrounds.competitor = base64ToBytes(competitorBleedBg);
+  if (mediaBleedBg)
+    assets.roleBleedBackgrounds.media = base64ToBytes(mediaBleedBg);
+  if (bleedBg) assets.bleedBackground = base64ToBytes(bleedBg);
   if (logo) assets.logo = base64ToBytes(logo);
   if (wca) assets.wcaLogo = base64ToBytes(wca);
   if (qrCode) assets.qrCode = qrCode;
