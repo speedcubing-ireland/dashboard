@@ -18,6 +18,7 @@ const ICON_NAME_OVERRIDES: Record<string, string> = {
   "333mbf": "MBLD",
   "333fm": "FMC",
   "333oh": "3x3 OH",
+  fto: "FTO",
 };
 
 const HIDDEN_ICONS = ["333ft"];
